@@ -12,6 +12,7 @@ This github repository describes how to integrate Apache Ranger with Trino.
 
 - An open [#PR](https://github.com/apache/ranger/pull/291) for Apache Ranger Trino plugin raised by [@shreyas-dview](https://github.com/shreyas-dview)
 - [@aakashnand](https://github.com/aakashnand) - his Medium article about Apache Ranger integration with Trino. [Medium Link](https://towardsdatascience.com/integrating-trino-and-apache-ranger-b808f6b96ad8)
+- Elasticsearch deployment with docker compose - [Article Link](https://www.elastic.co/blog/getting-started-with-the-elastic-stack-and-docker-compose).
 
 ### Running Trino and Apache Ranger Locally
 
