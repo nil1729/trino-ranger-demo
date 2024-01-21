@@ -1,0 +1,206 @@
+version: "3"
+
+services:
+  setup:
+    hostname: setup
+    container_name: setup
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    networks:
+      ranger-net:
+        ipv4_address: ${SETUP_IP}
+    volumes:
+      - es-certs:/usr/share/elasticsearch/config/certs
+    user: "0"
+    command: >
+      bash -c '
+        if [ x${ELASTIC_PASSWORD} == x ]; then
+          echo "Set the ELASTIC_PASSWORD environment variable in the .env file";
+          exit 1;
+        fi;
+        if [ ! -f config/certs/ca.zip ]; then
+          echo "Creating CA";
+          bin/elasticsearch-certutil ca --silent --pem -out config/certs/ca.zip;
+          unzip config/certs/ca.zip -d config/certs;
+        fi;
+        if [ ! -f config/certs/certs.zip ]; then
+          echo "Creating certs";
+          echo -ne \
+          "instances:\n"\
+          "  - name: es01\n"\
+          "    dns:\n"\
+          "      - es01\n"\
+          "      - localhost\n"\
+          "    ip:\n"\
+          "      - 127.0.0.1\n"\
+          > config/certs/instances.yml;
+          bin/elasticsearch-certutil cert --silent --pem -out config/certs/certs.zip --in config/certs/instances.yml --ca-cert config/certs/ca/ca.crt --ca-key config/certs/ca/ca.key;
+          unzip config/certs/certs.zip -d config/certs;
+        fi;
+        echo "Setting file permissions"
+        chown -R root:root config/certs;
+        find . -type d -exec chmod 750 \{\} \;;
+        find . -type f -exec chmod 640 \{\} \;;
+        
+        echo "Waiting for Elasticsearch availability";
+        until curl -s --cacert config/certs/ca/ca.crt https://es01:9200 | grep -q "missing authentication credentials"; do sleep 30; done;
+        
+        echo "Waiting for es-proxy service to be up";
+        until curl -s http://es-proxy | grep -q "missing authentication credentials"; do sleep 30; done;
+
+        echo "es-proxy service is up, now waiting for ranger";
+        until curl -s -o /dev/null -w "%{http_code}" http://localhost:6080 | grep "302"; do sleep 30; done;
+
+        echo "All done!";
+      '
+    healthcheck:
+      test: ["CMD-SHELL", "[ -f config/certs/es01/es01.crt ]"]
+      interval: 1s
+      timeout: 5s
+      retries: 120
+
+  es01:
+    hostname: es01
+    container_name: es01
+    depends_on:
+      setup:
+        condition: service_healthy
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    networks:
+      - ranger-net
+    labels:
+      co.elastic.logs/module: elasticsearch
+    volumes:
+      - es-certs:/usr/share/elasticsearch/config/certs
+      - es-data-01:/usr/share/elasticsearch/data
+    environment:
+      - node.name=es01
+      - cluster.name=${CLUSTER_NAME}
+      - discovery.type=single-node
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.key=certs/es01/es01.key
+      - xpack.security.http.ssl.certificate=certs/es01/es01.crt
+      - xpack.security.http.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.transport.ssl.enabled=true
+      - xpack.security.transport.ssl.key=certs/es01/es01.key
+      - xpack.security.transport.ssl.certificate=certs/es01/es01.crt
+      - xpack.security.transport.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.transport.ssl.verification_mode=certificate
+      - xpack.license.self_generated.type=${LICENSE}
+    mem_limit: ${ES_MEM_LIMIT}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 | grep -q 'missing authentication credentials'",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+
+  es-proxy:
+    hostname: es-proxy
+    container_name: es-proxy
+    image: nginx:1.25.3 # using fixed version to avoid breaking changes (as of 2024-01-21)
+    command: "/start-nginx.sh"
+    networks:
+      - ranger-net
+    depends_on:
+      es01:
+        condition: service_healthy
+    environment:
+      - TRINO_IP=${TRINO_IP}
+      - RANGER_IP=${RANGER_IP}
+      - SETUP_IP=${SETUP_IP}
+    healthcheck:
+      test: ["CMD-SHELL", "pidof nginx || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    volumes:
+      - ${PWD}/es-proxy/nginx.conf:/etc/nginx/nginx.conf.template:ro
+      - ${PWD}/es-proxy/start-nginx.sh:/start-nginx.sh
+
+  postgres:
+    hostname: postgres
+    container_name: postgres
+    image: postgres:latest
+    environment:
+      POSTGRES_DB: ranger
+      POSTGRES_USER: ranger
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - ranger-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -q -d ranger -U ranger"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  ranger:
+    container_name: ranger
+    hostname: ranger
+    build:
+      context: ranger
+      dockerfile: Dockerfile
+    command: ./docker-entrypoint.sh
+    ports:
+      - "6080:6080"
+    networks:
+      ranger-net:
+        ipv4_address: ${RANGER_IP}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6080"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      es-proxy:
+        condition: service_healthy
+    volumes:
+      - es-certs:/usr/local/share/es/certs:ro
+      - ${PWD}/ranger/install.properties:/root/ranger/install.properties
+
+  trino:
+    build:
+      context: trino
+      dockerfile: Dockerfile
+    user: root
+    command: /usr/local/bin/docker-entrypoint.sh
+    ports:
+      - "8888:8080"
+    networks:
+      ranger-net:
+        ipv4_address: 172.16.0.155
+    depends_on:
+      ranger:
+        condition: service_healthy
+    volumes:
+      - ./trino/enable-trino-plugin.sh:/ranger-3.0.0-SNAPSHOT-trino-plugin/enable-trino-plugin.sh
+      - ./trino/install.properties:/ranger-3.0.0-SNAPSHOT-trino-plugin/install.properties
+      - ${PWD}/trino/catalog/pg.properties:/etc/trino/catalog/pg.properties
+
+volumes:
+  postgres-data:
+  es-certs:
+  es-data-01:
+  ranger-es-data:
+
+networks:
+  ranger-net:
+    ipam:
+      driver: default
+      config:
+        - subnet: ${RANGER_SUBNET}
+  www:
