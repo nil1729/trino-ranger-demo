@@ -6,7 +6,7 @@ RUN microdnf install -y gzip wget
 COPY ranger-3.0.0-SNAPSHOT-trino-plugin.tar.gz /tmp/ranger-3.0.0-SNAPSHOT-trino-plugin.tar.gz
 RUN tar -xzf /tmp/ranger-3.0.0-SNAPSHOT-trino-plugin.tar.gz
 
-# elastic search compatibility fix 
+# elasticsearch compatibility fix
 RUN rm -f /ranger-3.0.0-SNAPSHOT-trino-plugin/lib/ranger-trino-plugin-impl/lucene-core-*.jar
 RUN wget -qO /ranger-3.0.0-SNAPSHOT-trino-plugin/lib/ranger-trino-plugin-impl/log4j-api-2.11.1.jar https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j-api/2.11.1/log4j-api-2.11.1.jar
 RUN wget -qO /ranger-3.0.0-SNAPSHOT-trino-plugin/lib/ranger-trino-plugin-impl/log4j-core-2.11.1.jar https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j-core/2.11.1/log4j-core-2.11.1.jar

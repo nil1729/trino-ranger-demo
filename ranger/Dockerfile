@@ -18,10 +18,12 @@ WORKDIR /root
 
 COPY ranger-3.0.0-SNAPSHOT-admin.tar.gz .
 RUN tar -xzf ranger-3.0.0-SNAPSHOT-admin.tar.gz && rm ranger-3.0.0-SNAPSHOT-admin.tar.gz && mv ranger-3.0.0-SNAPSHOT-admin ranger
+
+# elasticsearch compatibility fix
 RUN rm -f /root/ranger/ews/lib/lucene-core-*.jar
 RUN wget -qO /root/ranger/ews/lib/lucene-core-8.7.0.jar https://repo1.maven.org/maven2/org/apache/lucene/lucene-core/8.7.0/lucene-core-8.7.0.jar
+
 COPY docker-entrypoint.sh .
+RUN chmod +x docker-entrypoint.sh
 
 ENV JAVA_HOME=/usr/lib/jvm/zulu11-ca-amd64
-
-RUN chmod +x docker-entrypoint.sh
