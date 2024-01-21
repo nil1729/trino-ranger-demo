@@ -1,4 +1,4 @@
-version: "3"
+version: '3'
 
 services:
   setup:
@@ -10,7 +10,7 @@ services:
         ipv4_address: ${SETUP_IP}
     volumes:
       - es-certs:/usr/share/elasticsearch/config/certs
-    user: "0"
+    user: '0'
     command: >
       bash -c '
         if [ x${ELASTIC_PASSWORD} == x ]; then
@@ -53,7 +53,7 @@ services:
         echo "All done!";
       '
     healthcheck:
-      test: ["CMD-SHELL", "[ -f config/certs/es01/es01.crt ]"]
+      test: ['CMD-SHELL', '[ -f config/certs/es01/es01.crt ]']
       interval: 1s
       timeout: 5s
       retries: 120
@@ -97,7 +97,7 @@ services:
     healthcheck:
       test:
         [
-          "CMD-SHELL",
+          'CMD-SHELL',
           "curl -s --cacert config/certs/ca/ca.crt https://localhost:9200 | grep -q 'missing authentication credentials'",
         ]
       interval: 10s
@@ -108,7 +108,7 @@ services:
     hostname: es-proxy
     container_name: es-proxy
     image: nginx:1.25.3 # using fixed version to avoid breaking changes (as of 2024-01-21)
-    command: "/start-nginx.sh"
+    command: '/start-nginx.sh'
     networks:
       - ranger-net
     depends_on:
@@ -119,7 +119,7 @@ services:
       - RANGER_IP=${RANGER_IP}
       - SETUP_IP=${SETUP_IP}
     healthcheck:
-      test: ["CMD-SHELL", "pidof nginx || exit 1"]
+      test: ['CMD-SHELL', 'pidof nginx || exit 1']
       interval: 10s
       timeout: 5s
       retries: 3
@@ -140,7 +140,7 @@ services:
     networks:
       - ranger-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -q -d ranger -U ranger"]
+      test: ['CMD-SHELL', 'pg_isready -q -d ranger -U ranger']
       interval: 10s
       timeout: 5s
       retries: 3
@@ -153,12 +153,12 @@ services:
       dockerfile: Dockerfile
     command: ./docker-entrypoint.sh
     ports:
-      - "6080:6080"
+      - '6080:6080'
     networks:
       ranger-net:
         ipv4_address: ${RANGER_IP}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6080"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:6080']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -181,16 +181,40 @@ services:
     user: root
     command: /usr/local/bin/docker-entrypoint.sh
     ports:
-      - "8888:8080"
+      - '8888:8080'
     networks:
       ranger-net:
         ipv4_address: ${TRINO_IP}
+      www:
     depends_on:
       ranger:
         condition: service_healthy
     volumes:
       - ${PWD}/trino/install.properties:/ranger-3.0.0-SNAPSHOT-trino-plugin/install.properties
       - ${PWD}/trino/catalog/pg.properties:/etc/trino/catalog/pg.properties:ro
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          "curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/v1/status | grep '200'",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  playground:
+    build:
+      context: ./playground
+      dockerfile: Dockerfile
+    container_name: playground
+    hostname: playground
+    command: /usr/local/bin/docker-entrypoint.sh
+    depends_on:
+      trino:
+        condition: service_healthy
+    networks:
+      - www
 
 volumes:
   postgres-data:
