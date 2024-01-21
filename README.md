@@ -100,13 +100,20 @@ Create a Access Control policy for `random` user.
 ![Ranger Trino Policy-1](assets/image-10.png)
 ![Ranger Trino Policy-2](assets/image-11.png)
 
-Test the Policy with `random` user by connecting Trino CLI.
+Test the Policy with `random` user by connecting with trino via Trino CLI.
 
 ```bash
 docker exec -it playground trino --server trino:8080 --user random
 ```
 
 ![Trino-CLI-random-2](assets/image-9.png)
+
+### Troubleshooting
+
+1. [java.lang.NoSuchFieldError: LUCENE_8_x_y](https://github.com/elastic/elasticsearch/issues/39387)
+2. [Java Decompiler](https://java-decompiler.github.io/)
+3. [Ranger Dev Mail List](https://lists.apache.org/list.html?dev@ranger.apache.org)
+4. [java.lang.NoClassDefFoundError: org/apache/log4j/LogManager](https://stackoverflow.com/questions/26338387/unexpected-exception-java-lang-noclassdeffounderror-org-apache-log4j-logmanage)
 
 ---
 
