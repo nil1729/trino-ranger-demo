@@ -48,7 +48,7 @@ services:
         until curl -s http://es-proxy | grep -q "missing authentication credentials"; do sleep 30; done;
 
         echo "es-proxy service is up, now waiting for ranger";
-        until curl -s -o /dev/null -w "%{http_code}" http://localhost:6080 | grep "302"; do sleep 30; done;
+        until curl -s -o /dev/null -w "%{http_code}" http://ranger:6080 | grep "302"; do sleep 30; done;
 
         echo "All done!";
       '
@@ -173,6 +173,8 @@ services:
       - ${PWD}/ranger/install.properties:/root/ranger/install.properties
 
   trino:
+    hostname: trino
+    container_name: trino
     build:
       context: trino
       dockerfile: Dockerfile
@@ -182,14 +184,13 @@ services:
       - "8888:8080"
     networks:
       ranger-net:
-        ipv4_address: 172.16.0.155
+        ipv4_address: ${TRINO_IP}
     depends_on:
       ranger:
         condition: service_healthy
     volumes:
-      - ./trino/enable-trino-plugin.sh:/ranger-3.0.0-SNAPSHOT-trino-plugin/enable-trino-plugin.sh
-      - ./trino/install.properties:/ranger-3.0.0-SNAPSHOT-trino-plugin/install.properties
-      - ${PWD}/trino/catalog/pg.properties:/etc/trino/catalog/pg.properties
+      - ${PWD}/trino/install.properties:/ranger-3.0.0-SNAPSHOT-trino-plugin/install.properties
+      - ${PWD}/trino/catalog/pg.properties:/etc/trino/catalog/pg.properties:ro
 
 volumes:
   postgres-data:

@@ -6,11 +6,8 @@ update-ca-certificates
 cd /root/ranger && ./setup.sh 
 ranger-admin start 
 
-until [ -f /root/ranger/ews/logs/catalina.out ]; do
-  echo "waiting for catalina.out to be created..." 
+echo "waiting for catalina.out to be created"
+until [ -f /root/ranger/ews/logs/catalina.out ]; do 
   sleep 1
 done
 tail -f /root/ranger/ews/logs/ranger-admin-*-.log /root/ranger/ews/logs/catalina.out
-#  | sed 's/^/[CATALINA-OUT]: /'
-# | sed 's/^/[RANGER-LOG]: /' 
-

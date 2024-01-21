@@ -1,5 +1,4 @@
 FROM trinodb/trino:433
-LABEL maintainer="Nilanjan  Deb"
 
 USER root
 RUN microdnf install -y gzip wget
