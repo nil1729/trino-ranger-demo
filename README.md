@@ -92,11 +92,11 @@ docker exec -it playground trino --server trino:8080 --user random
 
 Let's create a policy for `random` user. This policy will allow `random` user to access `pg` catalog and `information_schema` schema and only `pg.public.x_db_version_h` table and only `id` column for table `pg.public.x_db_version_h`.
 
-First create a user `random` in Ranger Admin UI.
+First create an user `random` in Ranger Admin UI.
 
 ![Ranger Admin - User Create](assets/image-8.png)
 
-Create a Access Control policy for `random` user.
+Create an Access Control policy for `random` user.
 
 ![Ranger Trino Policy-1](assets/image-10.png)
 ![Ranger Trino Policy-2](assets/image-11.png)
@@ -108,6 +108,12 @@ docker exec -it playground trino --server trino:8080 --user random
 ```
 
 ![Trino-CLI-random-2](assets/image-9.png)
+
+#### Checking Access Audit Logs in Ranger Admin UI
+
+For access audit logs, we need to setup `elasticsearch` with ranger. There have some compatibility issues with current `elasticsearch` version (8.x.y) and `ranger` and `ranger-trino-plugin`. We have used `7.17.16` version of elasticsearch as `ranger` uses elasticsearch version `7.10.2`.
+
+![Ranger Access Audit Logs](assets/image-12.png)
 
 ### Troubleshooting
 
