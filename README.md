@@ -30,7 +30,7 @@ git clone https://github.com/apache/ranger ranger
 cd ranger && git checkout dview-io:trino-ranger-plugin
 ```
 
-> Following build will take ~1 hour to build. After successful build, you can find `ranger-3.0.0-SNAPSHOT-trino-plugin.tar.gz` file in `target` directory.
+> Following build will take ~1 hour to build. After successful build, you can find `ranger-3.0.0-SNAPSHOT-admin.tar.gz` file in `target` directory.
 
 ```bash
 mvn clean compile package install -Pranger-jdk17 -DskipTests
